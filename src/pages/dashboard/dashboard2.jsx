@@ -9,7 +9,7 @@ import {
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
-
+     
 export default function MiningDashboardApp() {
   // Sample data for charts and tables
   const safetyMetrics = [

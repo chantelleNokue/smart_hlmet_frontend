@@ -19,6 +19,7 @@ import {
   DatePicker
 } from 'antd';
 import { minersData , initialHelmetsData } from "../mockData/mockData";
+import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 
 export default function HelmetAssgnmentScreen() {
 
@@ -270,14 +271,14 @@ export default function HelmetAssgnmentScreen() {
           <Input 
             placeholder="Search by ID" 
             prefix={<SearchOutlined />}
-            value={searchId}
+            // value={searchId}
             // onChange={(e) => setSearchId(e.target.value)}
             style={{ width: 300 }}
           />
           <Select
             placeholder="Filter by Department"
             style={{ width: 300 }}
-            value={searchDepartment || undefined}
+            // value={searchDepartment || undefined}
             allowClear
             // onChange={(value) => setSearchDepartment(value || '')}
           >
@@ -292,13 +293,13 @@ export default function HelmetAssgnmentScreen() {
           >
             Reset Filters
           </Button>
-          <SignedOut>
-  <SignInButton />
-</SignedOut>
+          {/* <SignedOut>
+  <SignInButton /> */}
+{/* </SignedOut> */}
 
           <Button 
             type="primary" 
-            icon={<PlusOutlined />}
+            icon={<PlusOutlined/>}
             // onClick={() => setIsAddEmployeeModalVisible(true)}
           >
             Add Employee

@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Search, Filter, MapPin, Thermometer, Wind, Heart, AlertTriangle, Droplets, Clock, User, Shield } from 'lucide-react';
-import moment from 'moment';
 
 const AlertsCharts = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -10,59 +8,58 @@ const AlertsCharts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_BASE_URL = 'http://localhost:3061/api/sensors';
+  // API base URL - adjust this to match your backend
+  const API_BASE_URL = 'http://localhost:3061/api/sensors'; // Updated to match your server configuration
 
+  // Fetch all latest sensor data with assignments
   const fetchHelmetsData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const sensorResponse = await axios.get(`${API_BASE_URL}/sensor-data/latest`);
-      // CORRECTED: Extract values from the data object
-      // sensorResponse.data.data is an object like { "helmet_001": {...}, "helmet_006": {...} }
-      // We need to convert it into an array of these inner sensor objects.
-      let sensorData = sensorResponse.data.success && sensorResponse.data.data 
-                       ? Object.values(sensorResponse.data.data) // This is the key change!
-                       : [];
-      
-      // The previous check for !Array.isArray(sensorData) is still good if the API structure might vary,
-      // but Object.values() ensures it's an array if data exists.
-      if (!Array.isArray(sensorData) && sensorData) {
-        sensorData = [sensorData];
+      // Fetch latest sensor data for all helmets
+      const sensorResponse = await fetch(`${API_BASE_URL}/sensor-data/latest`);
+      if (!sensorResponse.ok) {
+        throw new Error('Failed to fetch sensor data');
+      }
+      const sensorResult = await sensorResponse.json();
+
+      // Extract data from response - handle both array and single object responses
+      let sensorData = [];
+      if (sensorResult.success && sensorResult.data) {
+        // If data is an array, use it directly; if it's a single object, wrap it in an array
+        sensorData = Array.isArray(sensorResult.data) ? sensorResult.data : [sensorResult.data];
       }
 
-      console.log("Processed Sensor Data for mappinggg:", sensorData); // Re-log to verify new structure
+      console.log('sensorResult', sensorResult);
 
-      const assignmentsResponse = await axios.get(`${API_BASE_URL}/assignments`);
-      let assignmentsData = assignmentsResponse.data.success ? assignmentsResponse.data.data : [];
-      if (!Array.isArray(assignmentsData) && assignmentsData) {
-          assignmentsData = [assignmentsData];
+      // Fetch all assignments to get employee info
+      const assignmentsResponse = await fetch(`${API_BASE_URL}/assignments`);
+      if (!assignmentsResponse.ok) {
+        throw new Error('Failed to fetch assignments');
       }
-      // console.log("Fetched Assignments Data:", assignmentsData);
-      
-      const combinedData = sensorData.map(sensor => {
-        // These logs should now show valid helmet IDs
-        // console.log(`Processing sensor for helmetId: "${sensor.helmetId}"`);
+      const assignmentsResult = await assignmentsResponse.json();
 
-        const assignment = assignmentsData.find(assign => {
-            const assignHelmetId = assign.helmetId ? String(assign.helmetId).trim().toLowerCase() : '';
-            const sensorHelmetId = sensor.helmetId ? String(sensor.helmetId).trim().toLowerCase() : '';
-            
-            // console.log(`  Comparing Assignment ID: "${assignHelmetId}" with Sensor ID: "${sensorHelmetId}"`);
-            
-            return assignHelmetId === sensorHelmetId;
-        });
+      console.log('assignmentsResult', assignmentsResult);
 
-        // console.log("Found assignment:", assignment);
+      // Extract assignments data
+      let assignmentsData = [];
+      if (assignmentsResult.success && assignmentsResult.data) {
+        assignmentsData = Array.isArray(assignmentsResult.data) ? assignmentsResult.data : [assignmentsResult.data];
+      }
 
+      // Combine sensor data with assignment information
+      // Combine sensor data with assignment information
+      const combinedData = sensorData.map((sensor) => {
+        // MODIFIED: Access helmetId within the nested 'helmet' object
+        const assignment = assignmentsData.find((assign) => assign.helmet && assign.helmet.helmetId === sensor.helmetId); // Determine status based on sensor readings
         const status = determineStatus(sensor);
-
         return {
-          helmetId: sensor.helmetId,
-          employeeName: assignment?.employeeName ?? 'Unassigned',
-          employeeId: assignment?.employeeId ?? 'N/A',
-          department: assignment?.department ?? 'Unknown',
-          location: sensor?.location ?? 'Unknown Location',
+          helmetId: sensor.helmetId, // MODIFIED: Access employeeName, department, location from nested structures
+          employeeName: assignment?.employee?.employeeName || 'Unassigned',
+          employeeId: assignment?.employee?.employeeId || 'N/A', // Assuming employeeId is also nested
+          department: assignment?.employee?.department || 'Unknown', // Assuming department is also nested
+          location: assignment?.employee?.location || 'Unknown Location', // Assuming location is also nested
           status: status,
           temperature: parseFloat(sensor.temperature || 0),
           humidity: parseFloat(sensor.humidity || 0),
@@ -72,78 +69,60 @@ const AlertsCharts = () => {
           humidityAlert: sensor.humidityAlert || false,
           panicAlert: sensor.panicAlert || false,
           panicButton: sensor.panicButton || 0,
-          // lastUpdate: new Date(sensor.timestamp || sensor.createdAt).toLocaleString(),
-         lastUpdate: (() => {
-    const rawTimestamp = sensor.timestamp || sensor.createdAt;
-    if (!rawTimestamp) return 'N/A'; // No timestamp at all
-
-    let timestampToUse;
-    const stringTimestamp = String(rawTimestamp);
-
-    if (stringTimestamp.length === 10 && !isNaN(parseInt(stringTimestamp))) { // Appears to be seconds
-        timestampToUse = parseInt(stringTimestamp) * 1000;
-    } else if (stringTimestamp.length === 13 && !isNaN(parseInt(stringTimestamp))) { // Appears to be milliseconds
-        timestampToUse = parseInt(stringTimestamp);
-    } else {
-        // If it's not a standard 10 or 13 digit number, try moment's direct parsing.
-        // This handles ISO strings, or numbers that are already in ms but not 13 digits (less common).
-        timestampToUse = rawTimestamp;
-    }
-
-    const m = moment(timestampToUse);
-    return m.isValid() ? m.toLocaleString() : 'Invalid Date';
-})(),
+          lastUpdate: new Date(sensor.timestamp || sensor.createdAt).toLocaleString(),
+          recordId: sensor.recordId
         };
       });
 
       setHelmetsData(combinedData);
-
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError(err.message || 'An unknown error occurred while fetching data.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // ... (rest of your component code, determineStatus, filters, etc. remains the same as previously provided)
+  // Determine helmet status based on sensor readings and alerts
   const determineStatus = (sensor) => {
     // Critical conditions
     if (sensor.panicAlert || sensor.panicButton > 0) {
       return 'critical';
     }
-    
-    // Warning conditions from API's specific alerts
+
+    // Warning conditions
     if (sensor.gasAlert || sensor.tempAlert || sensor.humidityAlert) {
       return 'warning';
     }
-    
-    // Check raw sensor values against thresholds
+
+    // Check sensor values against thresholds
     const temp = parseFloat(sensor.temperature || 0);
     const humidity = parseFloat(sensor.humidity || 0);
     const gasLevel = parseInt(sensor.gasLevel || 0);
-    
-    // These thresholds are examples, adjust them based on your safety standards
+
     if (temp > 35 || humidity > 80 || gasLevel > 500) {
       return 'critical';
     }
-    
+
     if (temp > 30 || humidity > 70 || gasLevel > 300) {
       return 'warning';
     }
-    
+
     return 'safe';
   };
 
-  const filteredHelmets = helmetsData.filter(helmet => {
-    const matchesSearch = helmet.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          helmet.helmetId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          helmet.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          helmet.department.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter helmets based on search term and status
+  const filteredHelmets = helmetsData.filter((helmet) => {
+    const matchesSearch =
+      helmet.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      helmet.helmetId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      helmet.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      helmet.department.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || helmet.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
+  // Status color classes
   const getStatusColor = (status) => {
     switch (status) {
       case 'safe':
@@ -170,34 +149,45 @@ const AlertsCharts = () => {
     }
   };
 
+  // Get gas level color based on value
   const getGasLevelColor = (gasLevel) => {
     if (gasLevel > 500) return 'text-red-600';
     if (gasLevel > 300) return 'text-yellow-600';
     return 'text-green-600';
   };
 
+  // Get temperature color based on value
   const getTempColor = (temp) => {
     if (temp > 35) return 'text-red-600';
     if (temp > 30) return 'text-yellow-600';
     return 'text-blue-600';
   };
 
+  // Get humidity color based on value
   const getHumidityColor = (humidity) => {
     if (humidity > 80) return 'text-red-600';
     if (humidity > 70) return 'text-yellow-600';
     return 'text-blue-600';
   };
 
+  console.log("helmetsData:", helmetsData);
+  console.log("filteredHelmets:", filteredHelmets);
+
+  // Fetch data on component mount and set up polling
   useEffect(() => {
     fetchHelmetsData();
+
+    // Set up polling every 5 seconds for real-time updates
     const interval = setInterval(fetchHelmetsData, 5000);
+
     return () => clearInterval(interval);
   }, []);
 
+  // Get status counts for summary
   const statusCounts = helmetsData.reduce((acc, helmet) => {
     acc[helmet.status] = (acc[helmet.status] || 0) + 1;
     return acc;
-  }, { safe: 0, warning: 0, critical: 0 });
+  }, {});
 
   if (loading && helmetsData.length === 0) {
     return (
@@ -217,10 +207,7 @@ const AlertsCharts = () => {
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Data</h3>
           <p className="text-gray-600 mb-4">{error}</p>
-          <button 
-            onClick={fetchHelmetsData}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
+          <button onClick={fetchHelmetsData} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
             Retry
           </button>
         </div>
@@ -241,7 +228,7 @@ const AlertsCharts = () => {
             <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
             <span className="text-sm text-gray-600">Live Updates</span>
           </div>
-          <button 
+          <button
             onClick={fetchHelmetsData}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
           >
@@ -265,7 +252,7 @@ const AlertsCharts = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Safe</p>
-              <p className="text-2xl font-bold text-green-600">{statusCounts.safe}</p>
+              <p className="text-2xl font-bold text-green-600">{statusCounts.safe || 0}</p>
             </div>
             <div className="h-3 w-3 bg-green-500 rounded-full"></div>
           </div>
@@ -274,7 +261,7 @@ const AlertsCharts = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Warning</p>
-              <p className="text-2xl font-bold text-yellow-600">{statusCounts.warning}</p>
+              <p className="text-2xl font-bold text-yellow-600">{statusCounts.warning || 0}</p>
             </div>
             <div className="h-3 w-3 bg-yellow-500 rounded-full"></div>
           </div>
@@ -283,7 +270,7 @@ const AlertsCharts = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Critical</p>
-              <p className="text-2xl font-bold text-red-600">{statusCounts.critical}</p>
+              <p className="text-2xl font-bold text-red-600">{statusCounts.critical || 0}</p>
             </div>
             <div className="h-3 w-3 bg-red-500 rounded-full animate-pulse"></div>
           </div>
@@ -357,25 +344,19 @@ const AlertsCharts = () => {
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="text-center p-3 bg-gray-50 rounded-lg">
                 <Thermometer className={`h-5 w-5 mx-auto mb-1 ${getTempColor(helmet.temperature)}`} />
-                <div className={`text-sm font-semibold ${getTempColor(helmet.temperature)}`}>
-                  {helmet.temperature.toFixed(1)}°C
-                </div>
+                <div className={`text-sm font-semibold ${getTempColor(helmet.temperature)}`}>{helmet.temperature.toFixed(1)}°C</div>
                 <div className="text-xs text-gray-600">Temperature</div>
                 {helmet.tempAlert && <div className="text-xs text-red-600 font-medium">ALERT</div>}
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg">
                 <Droplets className={`h-5 w-5 mx-auto mb-1 ${getHumidityColor(helmet.humidity)}`} />
-                <div className={`text-sm font-semibold ${getHumidityColor(helmet.humidity)}`}>
-                  {helmet.humidity.toFixed(1)}%
-                </div>
+                <div className={`text-sm font-semibold ${getHumidityColor(helmet.humidity)}`}>{helmet.humidity.toFixed(1)}%</div>
                 <div className="text-xs text-gray-600">Humidity</div>
                 {helmet.humidityAlert && <div className="text-xs text-red-600 font-medium">ALERT</div>}
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg col-span-2">
                 <AlertTriangle className={`h-5 w-5 mx-auto mb-1 ${getGasLevelColor(helmet.gasLevel)}`} />
-                <div className={`text-sm font-semibold ${getGasLevelColor(helmet.gasLevel)}`}>
-                  {helmet.gasLevel} ppm
-                </div>
+                <div className={`text-sm font-semibold ${getGasLevelColor(helmet.gasLevel)}`}>{helmet.gasLevel} ppm</div>
                 <div className="text-xs text-gray-600">Gas Level</div>
                 {helmet.gasAlert && <div className="text-xs text-red-600 font-medium">GAS ALERT</div>}
               </div>
@@ -424,3 +405,5 @@ const AlertsCharts = () => {
 };
 
 export default AlertsCharts;
+
+// export default AlertsCharts;

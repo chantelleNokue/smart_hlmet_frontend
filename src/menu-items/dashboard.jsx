@@ -13,17 +13,17 @@ const dashboard = {
   title: 'dashboard',
   type: 'group',
   children: [
+    // {
+    //   id: 'dashboard',
+    //   title: 'Dashboard',
+    //   type: 'item',
+    //   url: '/dashboard/default',
+    //   icon: icons.DashboardOutlined,
+    //   breadcrumbs: false
+    // },
     {
-      id: 'dashboard',
+      id: 'Dashboard',
       title: 'Dashboard',
-      type: 'item',
-      url: '/dashboard/default',
-      icon: icons.DashboardOutlined,
-      breadcrumbs: false
-    },
-    {
-      id: 'MiningDashboardApp',
-      title: 'MiningDashboardApp',
       type: 'item',
       url: '/dashboard/MiningDashboardApp',
       icon: icons.DashboardOutlined,

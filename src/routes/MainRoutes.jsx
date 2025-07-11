@@ -7,6 +7,7 @@ import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 import { UserProfile } from '@clerk/clerk-react';
 import UserManagement from '../pages/user-management/UserManagement';
+// import HelmetAssignmentScreen from '../pages/helmets/HelmetAssignmentScreen1';
 
 // Render components
 const DashboardDefault = Loadable(lazy(() => import('pages/dashboard/default')));
@@ -16,6 +17,9 @@ const Analytics = Loadable(lazy(() => import('pages/analytics/page.jsx')));
 const HistoricalData = Loadable(lazy(() => import('pages/historicalData/HistoricalData')));
 const MiningDashboardApp = Loadable(lazy(() => import('pages/dashboard/dashboard2')));
 const SamplePage = Loadable(lazy(() => import('pages/extra-pages/sample-page')));
+const Settings = Loadable(lazy(() => import('pages/settings/settings')));
+const HelmetAssignment = Loadable(lazy(() => import('pages/helmets/HelmetAssignmentScreen1')));
+
 
 // Protected route components
 const AdminRoute = ({ children }) => {
@@ -73,9 +77,17 @@ const MainRoutes = {
       path: '/alert',
       element: <Alerts />
     },
+     {
+      path: '/settings',
+      element: <Settings />
+    },
     {
       path: '/profile',
       element: <UserProfile />
+    },
+    {
+      path: '/helmets',
+      element: <HelmetAssignment />
     },
     {
       path: '/user-management',

@@ -1,525 +1,331 @@
-"use client"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from 'react';
 import { 
-  Card, 
-  Typography, 
-  Badge as AntBadge, 
-  Button, 
-  Input, 
-  Select, 
-  Tabs, 
-  Space, 
-  Empty, 
-  Divider,
-  message,
-  Row,
-  Col
-} from 'antd'
-import { 
-  AlertOutlined, 
-  CheckOutlined, 
-  InfoCircleOutlined, 
-  SearchOutlined, 
-  SoundOutlined, 
-  DeleteOutlined 
-} from '@ant-design/icons'
-import { HiOutlineBellSlash } from "react-icons/hi2"
-import { CiVolumeMute } from "react-icons/ci"
+  AlertTriangle, 
+  Thermometer, 
+  Wind, 
+  Flame,
+  Heart,
+  MapPin,
+  Bell,
+  Shield,
+  User,
+  Settings,
+  LogOut,
+  RefreshCw,
+  Battery,
+  Wifi,
+  Clock
+} from 'lucide-react';
 
-const { Title, Text, Paragraph } = Typography
-const { TabPane } = Tabs
-
-// Mock notification data
-const initialNotifications = [
-  {
-    id: 1,
-    title: "High methane levels detected",
-    message: "Methane levels in Section B have exceeded safe thresholds. Ventilation systems activated.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 minutes ago
-    type: "alert",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Maintenance completed",
-    message: "Scheduled maintenance on Drill #3 has been completed. Equipment is now operational.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
-    type: "info",
-    read: true,
-  },
-  {
-    id: 3,
-    title: "Staff shift change",
-    message: "Reminder: Shift change at 3:00 PM. Please ensure all handover procedures are followed.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-    type: "info",
-    read: false,
-  },
-  {
-    id: 4,
-    title: "System update scheduled",
-    message: "A system update is scheduled for tonight at 2:00 AM. Brief downtime expected.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-    type: "info",
-    read: true,
-  },
-  {
-    id: 5,
-    title: "Critical equipment failure",
-    message: "Conveyor belt in Section C has stopped. Maintenance team dispatched.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(), // 8 hours ago
-    type: "alert",
-    read: true,
-  },
-  {
-    id: 6,
-    title: "Safety inspection passed",
-    message: "Monthly safety inspection completed with no critical issues found.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-    type: "success",
-    read: true,
-  },
-  {
-    id: 7,
-    title: "New safety protocol",
-    message: "New safety protocol for handling explosives has been published. All staff must review.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
-    type: "info",
-    read: true,
-  },
-  {
-    id: 8,
-    title: "Environmental compliance check",
-    message: "Quarterly environmental compliance check scheduled for next week.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(), // 3 days ago
-    type: "info",
-    read: true,
-  },
-]
-
-export default function Notifications() {
-  const [notifications, setNotifications] = useState(initialNotifications)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [typeFilter, setTypeFilter] = useState("all")
-  const [timeFilter, setTimeFilter] = useState("all")
-  const [soundEnabled, setSoundEnabled] = useState(true)
-  const [messageApi, contextHolder] = message.useMessage()
-
-  // Filter notifications based on search, type, and time
-  const filteredNotifications = notifications.filter((notification) => {
-    // Search filter
-    const matchesSearch =
-      notification.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      notification.message.toLowerCase().includes(searchTerm.toLowerCase())
-
-    // Type filter
-    const matchesType = typeFilter === "all" || notification.type === typeFilter
-
-    // Time filter
-    let matchesTime = true
-    const notificationDate = new Date(notification.timestamp)
-    const now = new Date()
-
-    if (timeFilter === "today") {
-      matchesTime = notificationDate.toDateString() === now.toDateString()
-    } else if (timeFilter === "yesterday") {
-      const yesterday = new Date(now)
-      yesterday.setDate(now.getDate() - 1)
-      matchesTime = notificationDate.toDateString() === yesterday.toDateString()
-    } else if (timeFilter === "thisWeek") {
-      const weekAgo = new Date(now)
-      weekAgo.setDate(now.getDate() - 7)
-      matchesTime = notificationDate >= weekAgo
+const Notifications = () => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [miners] = useState([
+    {
+      id: 1,
+      name: "John Mukamuri",
+      helmet: "H001",
+      location: "Tunnel A - Level 2",
+      temperature: 28.5,
+      oxygen: 19.2,
+      co: 12,
+      heartRate: 78,
+      battery: 85,
+      signal: 4,
+      status: "safe",
+      lastUpdate: "2 sec ago"
+    },
+    {
+      id: 2,
+      name: "Grace Chivanga",
+      helmet: "H002", 
+      location: "Tunnel B - Level 1",
+      temperature: 32.1,
+      oxygen: 18.1,
+      co: 25,
+      heartRate: 92,
+      battery: 67,
+      signal: 3,
+      status: "warning",
+      lastUpdate: "5 sec ago"
+    },
+    {
+      id: 3,
+      name: "Peter Ndoro",
+      helmet: "H003",
+      location: "Tunnel C - Level 3", 
+      temperature: 35.2,
+      oxygen: 17.8,
+      co: 45,
+      heartRate: 105,
+      battery: 23,
+      signal: 2,
+      status: "critical",
+      lastUpdate: "1 sec ago"
     }
+  ]);
 
-    return matchesSearch && matchesType && matchesTime
-  })
+  const [alerts] = useState([
+    { id: 1, type: "critical", message: "H003: High CO levels detected - 45 ppm", time: "10:34 AM", miner: "Peter Ndoro" },
+    { id: 2, type: "warning", message: "H002: Temperature above normal - 32.1°C", time: "10:32 AM", miner: "Grace Chivanga" },
+    { id: 3, type: "emergency", message: "H003: Emergency button pressed", time: "10:30 AM", miner: "Peter Ndoro" },
+    { id: 4, type: "info", message: "H001: Battery below 30%", time: "10:28 AM", miner: "John Mukamuri" }
+  ]);
 
-  // Group notifications by read status
-  const unreadNotifications = filteredNotifications.filter((n) => !n.read)
-  const readNotifications = filteredNotifications.filter((n) => n.read)
-
-  // Mark all as read
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })))
-    messageApi.success({
-      content: `${unreadNotifications.length} notifications have been marked as read.`,
-      duration: 3,
-    })
-  }
-
-  // Clear all notifications
-  const clearAllNotifications = () => {
-    setNotifications([])
-    messageApi.success({
-      content: "Your notification list has been cleared.",
-      duration: 3,
-    })
-  }
-
-  // Mark a single notification as read
-  const markAsRead = (id) => {
-    setNotifications(notifications.map((n) => (n.id === id ? { ...n, read: true } : n)))
-  }
-
-  // Delete a single notification
-  const deleteNotification = (id) => {
-    setNotifications(notifications.filter((n) => n.id !== id))
-  }
-
-  // Toggle sound
-  const toggleSound = () => {
-    setSoundEnabled(!soundEnabled)
-    messageApi.info({
-      content: soundEnabled 
-        ? "You will no longer hear sounds for new notifications." 
-        : "You will now hear sounds for new notifications.",
-      duration: 3,
-    })
-  }
-
-  // Format timestamp
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now - date
-    const diffSec = Math.floor(diffMs / 1000)
-    const diffMin = Math.floor(diffSec / 60)
-    const diffHour = Math.floor(diffMin / 60)
-    const diffDay = Math.floor(diffHour / 24)
-
-    if (diffSec < 60) return "Just now"
-    if (diffMin < 60) return `${diffMin} minute${diffMin > 1 ? "s" : ""} ago`
-    if (diffHour < 24) return `${diffHour} hour${diffHour > 1 ? "s" : ""} ago`
-    if (diffDay < 7) return `${diffDay} day${diffDay > 1 ? "s" : ""} ago`
-
-    return date.toLocaleDateString()
-  }
-
-  // Get icon for notification type
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case "alert":
-        return <AlertOutlined style={{ fontSize: '20px', color: '#ff4d4f' }} />
-      case "success":
-        return <CheckOutlined style={{ fontSize: '20px', color: '#52c41a' }} />
-      case "info":
-      default:
-        return <InfoCircleOutlined style={{ fontSize: '20px', color: '#1890ff' }} />
-    }
-  }
-
-  // Get badge for notification type
-  const getNotificationBadge = (type) => {
-    switch (type) {
-      case "alert":
-        return <AntBadge color="red" text="Alert" />
-      case "success":
-        return <AntBadge color="green" text="Success" />
-      case "info":
-      default:
-        return <AntBadge color="blue" text="Info" />
-    }
-  }
-
-  // Simulate receiving a new notification
   useEffect(() => {
-    const interval = setInterval(() => {
-      // 10% chance of new notification every 30 seconds
-      if (Math.random() < 0.1) {
-        const newNotification = {
-          id: Date.now(),
-          title: "Environmental reading update",
-          message: "New environmental readings have been recorded and are available for review.",
-          timestamp: new Date().toISOString(),
-          type: "info",
-          read: false,
-        }
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-        setNotifications((prev) => [newNotification, ...prev])
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'safe': return 'bg-green-500';
+      case 'warning': return 'bg-yellow-500';
+      case 'critical': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
 
-        // Play sound if enabled
-        if (soundEnabled) {
-          const audio = new Audio("/notification.mp3")
-          audio.play().catch((e) => console.log("Audio play failed:", e))
-        }
+  const getAlertColor = (type) => {
+    switch(type) {
+      case 'critical': return 'border-l-red-500 bg-red-50';
+      case 'warning': return 'border-l-yellow-500 bg-yellow-50';
+      case 'emergency': return 'border-l-purple-500 bg-purple-50';
+      case 'info': return 'border-l-blue-500 bg-blue-50';
+      default: return 'border-l-gray-500 bg-gray-50';
+    }
+  };
 
-        messageApi.info({
-          content: newNotification.title + ": " + newNotification.message,
-          duration: 4,
-        })
-      }
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [soundEnabled, messageApi])
+  const StatCard = ({ title, value, unit, icon: Icon, status, threshold }) => (
+    <div className={`p-4 rounded-lg border-2 ${
+      status === 'critical' ? 'border-red-200 bg-red-50' :
+      status === 'warning' ? 'border-yellow-200 bg-yellow-50' :
+      'border-green-200 bg-green-50'
+    }`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className={`text-2xl font-bold ${
+            status === 'critical' ? 'text-red-700' :
+            status === 'warning' ? 'text-yellow-700' :
+            'text-green-700'
+          }`}>
+            {value} {unit}
+          </p>
+          {threshold && (
+            <p className="text-xs text-gray-500">Threshold: {threshold}</p>
+          )}
+        </div>
+        <Icon className={`w-8 h-8 ${
+          status === 'critical' ? 'text-red-500' :
+          status === 'warning' ? 'text-yellow-500' :
+          'text-green-500'
+        }`} />
+      </div>
+    </div>
+  );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {contextHolder}
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '16px',
-        '@media (min-width: 640px)': {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }
-      }}>
-       <Row justify="space-between" align="middle">
-  <Col>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <Title level={3} style={{ margin: 0 }}>Notifications</Title>
-      {unreadNotifications.length > 0 && (
-        <AntBadge 
-          count={unreadNotifications.length} 
-          style={{ backgroundColor: '#ff4d4f', marginLeft: '8px' }} 
-        />
-      )}
-    </div>
-  </Col>
-  <Col>
-    <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
-      <Button 
-        icon={soundEnabled ? <SoundOutlined /> : <CiVolumeMute style={{ fontSize: '16px' }} />} 
-        onClick={toggleSound} 
-      />
-      <Button 
-        icon={<CheckOutlined />} 
-        onClick={markAllAsRead} 
-        disabled={unreadNotifications.length === 0}
-      >
-        Mark All Read
-      </Button>
-      <Button 
-        icon={<DeleteOutlined />} 
-        danger 
-        onClick={clearAllNotifications} 
-        disabled={notifications.length === 0}
-      >
-        Clear All
-      </Button>
-    </Space>
-  </Col>
-</Row>
-<Row gutter={16}>
-  <Col span={18}>
-    <Input
-      prefix={<SearchOutlined />}
-      placeholder="Search notifications..."
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      style={{ width: '100%' }}
-    />
-  </Col>
-  <Col span={3} >
-      <Select
-        style={{ width: '100%' }}
-        placeholder="Filter by type"
-        value={typeFilter}
-        onChange={setTypeFilter}
-        options={[
-          { value: 'all', label: 'All Types' },
-          { value: 'alert', label: 'Alerts' },
-          { value: 'info', label: 'Information' },
-          { value: 'success', label: 'Success' }
-        ]}
-      />
-      
-  </Col>
- <Col span={3} >
-    
-     
-      <Select
-        style={{ width: '100%' }}
-        placeholder="Filter by time"
-        value={timeFilter}
-        onChange={setTimeFilter}
-        options={[
-          { value: 'all', label: 'All Time' },
-          { value: 'today', label: 'Today' },
-          { value: 'yesterday', label: 'Yesterday' },
-          { value: 'thisWeek', label: 'This Week' }
-        ]}
-      />
-    
-  </Col>
-
-</Row>
-        
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="bg-slate-70 border-b border-slate-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+           
+          </div>
+          
+          <div className="flex items-center space-x-6">
+            <div className="text-right">
+              <p className="text-gray-800 font-medium">{currentTime.toLocaleTimeString()}</p>
+              <p className="text-slate-500 text-sm">{currentTime.toLocaleDateString()}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      
-      <Tabs defaultActiveKey="all">
-        <TabPane tab="All" key="all">
-          <Card title="All Notifications" extra={<Text type="secondary">View all your notifications in one place</Text>}>
-            {filteredNotifications.length === 0 ? (
-              <Empty
-                image={<InfoCircleOutlined style={{ fontSize: '64px', color: '#bfbfbf' }} />}
-                description={
-                  <Space direction="vertical" align="center">
-                    <Text type="secondary">No notifications found</Text>
-                    {(searchTerm || typeFilter !== "all" || timeFilter !== "all") && (
-                      <Text type="secondary" style={{ fontSize: '14px' }}>Try adjusting your filters</Text>
-                    )}
-                  </Space>
-                }
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {filteredNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'flex-start', 
-                      gap: '16px', 
-                      padding: '16px', 
-                      border: '1px solid #d9d9d9', 
-                      borderRadius: '8px',
-                      backgroundColor: notification.read ? '#fff' : '#f5f5f5',
-                      transition: 'background-color 0.3s'
-                    }}
-                  >
-                    <div style={{ marginTop: '4px' }}>{getNotificationIcon(notification.type)}</div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text strong>{notification.title}</Text>
-                        {getNotificationBadge(notification.type)}
-                      </div>
-                      <Text type="secondary" style={{ fontSize: '14px' }}>{notification.message}</Text>
-                      <Text type="secondary" style={{ fontSize: '12px' }}>{formatTimestamp(notification.timestamp)}</Text>
-                    </div>
-                    <Space>
-                      {!notification.read && (
-                        <Button 
-                          type="text" 
-                          icon={<CheckOutlined />} 
-                          onClick={() => markAsRead(notification.id)} 
-                        />
-                      )}
-                      <Button 
-                        type="text" 
-                        icon={<DeleteOutlined />} 
-                        onClick={() => deleteNotification(notification.id)} 
-                      />
-                    </Space>
+      <div className="flex">
+        {/* Sidebar */}
+        <div className="w-80 bg-slate-70 border-r border-slate-200 p-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <Bell className="w-6 h-6 mr-2 text-yellow-600" />
+            Live Alerts
+          </h2>
+          
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {alerts.map(alert => (
+              <div key={alert.id} className={`p-3 rounded-lg border-l-4 ${getAlertColor(alert.type)}`}>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-800 text-sm">{alert.message}</p>
+                    <p className="text-xs text-gray-600 mt-1">{alert.miner}</p>
                   </div>
-                ))}
+                  <span className="text-xs text-gray-500">{alert.time}</span>
+                </div>
               </div>
-            )}
-          </Card>
-        </TabPane>
+            ))}
+          </div>
 
-        <TabPane tab="Unread" key="unread">
-          <Card title="Unread Notifications" extra={<Text type="secondary">Notifications that require your attention</Text>}>
-            {unreadNotifications.length === 0 ? (
-              <Empty
-                image={<HiOutlineBellSlash style={{ fontSize: '64px', color: '#bfbfbf' }} />}
-                description={
-                  <Space direction="vertical" align="center">
-                    <Text type="secondary">No unread notifications</Text>
-                    {(searchTerm || typeFilter !== "all" || timeFilter !== "all") && (
-                      <Text type="secondary" style={{ fontSize: '14px' }}>Try adjusting your filters</Text>
-                    )}
-                  </Space>
-                }
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {unreadNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'flex-start', 
-                      gap: '16px', 
-                      padding: '16px', 
-                      border: '1px solid #d9d9d9', 
-                      borderRadius: '8px',
-                      backgroundColor: '#f5f5f5'
-                    }}
-                  >
-                    <div style={{ marginTop: '4px' }}>{getNotificationIcon(notification.type)}</div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text strong>{notification.title}</Text>
-                        {getNotificationBadge(notification.type)}
-                      </div>
-                      <Text type="secondary" style={{ fontSize: '14px' }}>{notification.message}</Text>
-                      <Text type="secondary" style={{ fontSize: '12px' }}>{formatTimestamp(notification.timestamp)}</Text>
-                    </div>
-                    <Space>
-                      <Button 
-                        type="text" 
-                        icon={<CheckOutlined />} 
-                        onClick={() => markAsRead(notification.id)} 
-                      />
-                      <Button 
-                        type="text" 
-                        icon={<DeleteOutlined />} 
-                        onClick={() => deleteNotification(notification.id)} 
-                      />
-                    </Space>
-                  </div>
-                ))}
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">System Status</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Active Helmets</span>
+                <span className="text-green-600 font-medium">3/5</span>
               </div>
-            )}
-          </Card>
-        </TabPane>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Network Status</span>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-green-600 rounded-full mr-2"></div>
+                  <span className="text-green-600">Online</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Last Sync</span>
+                <span className="text-slate-600">2 sec ago</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <TabPane tab="Read" key="read">
-          <Card title="Read Notifications" extra={<Text type="secondary">Notifications you have already seen</Text>}>
-            {readNotifications.length === 0 ? (
-              <Empty
-                image={<InfoCircleOutlined style={{ fontSize: '64px', color: '#bfbfbf' }} />}
-                description={
-                  <Space direction="vertical" align="center">
-                    <Text type="secondary">No read notifications</Text>
-                    {(searchTerm || typeFilter !== "all" || timeFilter !== "all") && (
-                      <Text type="secondary" style={{ fontSize: '14px' }}>Try adjusting your filters</Text>
-                    )}
-                  </Space>
-                }
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {readNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'flex-start', 
-                      gap: '16px', 
-                      padding: '16px', 
-                      border: '1px solid #d9d9d9', 
-                      borderRadius: '8px',
-                      backgroundColor: '#fff'
-                    }}
-                  >
-                    <div style={{ marginTop: '4px' }}>{getNotificationIcon(notification.type)}</div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text strong>{notification.title}</Text>
-                        {getNotificationBadge(notification.type)}
-                      </div>
-                      <Text type="secondary" style={{ fontSize: '14px' }}>{notification.message}</Text>
-                      <Text type="secondary" style={{ fontSize: '12px' }}>{formatTimestamp(notification.timestamp)}</Text>
+        {/* Main Content */}
+        <div className="flex-1 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">Active Miners</h2>
+            <button className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+              <RefreshCw className="w-4 h-4" />
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          {/* Miners Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {miners.map(miner => (
+              <div key={miner.id} className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                {/* Miner Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-4 h-4 rounded-full ${getStatusColor(miner.status)}`}></div>
+                    <div>
+                      <h3 className="font-bold text-gray-800">{miner.name}</h3>
+                      <p className="text-sm text-slate-500">{miner.helmet}</p>
                     </div>
-                    <Button 
-                      type="text" 
-                      icon={<DeleteOutlined />} 
-                      onClick={() => deleteNotification(notification.id)} 
-                    />
                   </div>
-                ))}
+                  <div className="flex items-center space-x-2">
+                    <Battery className={`w-4 h-4 ${miner.battery > 30 ? 'text-green-600' : 'text-red-600'}`} />
+                    <span className={`text-sm ${miner.battery > 30 ? 'text-green-600' : 'text-red-600'}`}>
+                      {miner.battery}%
+                    </span>
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <div key={i} className={`w-1 h-3 mx-px ${i < miner.signal ? 'bg-green-600' : 'bg-slate-300'}`}></div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="flex items-center space-x-2 mb-4">
+                  <MapPin className="w-4 h-4 text-slate-400" />
+                  <span className="text-slate-500 text-sm">{miner.location}</span>
+                </div>
+
+                {/* Sensor Data Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <StatCard
+                    title="Temperature"
+                    value={miner.temperature}
+                    unit="°C"
+                    icon={Thermometer}
+                    status={miner.temperature > 30 ? (miner.temperature > 35 ? 'critical' : 'warning') : 'safe'}
+                    threshold="< 30°C"
+                  />
+                  <StatCard
+                    title="Oxygen"
+                    value={miner.oxygen}
+                    unit="%"
+                    icon={Wind}
+                    status={miner.oxygen < 19 ? (miner.oxygen < 18 ? 'critical' : 'warning') : 'safe'}
+                    threshold="> 19%"
+                  />
+                  <StatCard
+                    title="CO Level"
+                    value={miner.co}
+                    unit="ppm"
+                    icon={Flame}
+                    status={miner.co > 25 ? (miner.co > 40 ? 'critical' : 'warning') : 'safe'}
+                    threshold="< 25 ppm"
+                  />
+                  <StatCard
+                    title="Heart Rate"
+                    value={miner.heartRate}
+                    unit="bpm"
+                    icon={Heart}
+                    status={miner.heartRate > 90 ? (miner.heartRate > 100 ? 'critical' : 'warning') : 'safe'}
+                    threshold="60-90 bpm"
+                  />
+                </div>
+
+                {/* Emergency Button */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-4 h-4 text-slate-400" />
+                    <span className="text-xs text-slate-500">{miner.lastUpdate}</span>
+                  </div>
+                  {miner.status === 'critical' && (
+                    <button className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm font-medium animate-pulse">
+                      EMERGENCY
+                    </button>
+                  )}
+                </div>
               </div>
-            )}
-          </Card>
-        </TabPane>
-      </Tabs>
+            ))}
+          </div>
+
+          {/* Summary Stats */}
+          <div className="mt-8">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Safety Overview</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-700 text-sm">Safe</p>
+                    <p className="text-2xl font-bold text-green-700">1</p>
+                  </div>
+                  <Shield className="w-8 h-8 text-green-600" />
+                </div>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-yellow-700 text-sm">Warning</p>
+                    <p className="text-2xl font-bold text-yellow-700">1</p>
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-yellow-600" />
+                </div>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-red-700 text-sm">Critical</p>
+                    <p className="text-2xl font-bold text-red-700">1</p>
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-slate-700 text-sm">Total Active</p>
+                    <p className="text-2xl font-bold text-gray-800">3</p>
+                  </div>
+                  <User className="w-8 h-8 text-slate-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  )
-}
+  );
+};
+
+export default Notifications;

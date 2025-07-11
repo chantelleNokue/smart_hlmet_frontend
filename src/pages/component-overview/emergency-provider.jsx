@@ -1,113 +1,173 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useRef } from "react"
 import { Modal, Typography, Space, Button, Badge, notification } from "antd"
 import { WarningOutlined, ClockCircleOutlined, EnvironmentOutlined, IdcardOutlined } from "@ant-design/icons"
+
+// Import Firebase database instance
+import { database } from '../auth/firebase'; // Adjust path as per your firebase.js location
+import { ref, query, orderByChild, equalTo, limitToLast, onValue, off } from 'firebase/database';
+import alertSound  from '../../assets/alert.mp3'
+
 
 const { Text, Title } = Typography;
 
 const EmergencyContext = createContext(undefined)
 
 export function EmergencyProvider({ children }) {
-  const [emergencyAlerts, setEmergencyAlerts] = useState([])
   const [currentAlert, setCurrentAlert] = useState(null)
-  const [isAlertOpen, setIsAlertOpen] = useState(false)
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false)
+  const notificationKeyRef = useRef(null); // To store the key for the current Ant Design notification
 
-  // Function to trigger a new emergency
-  const triggerEmergency = (emergencyData) => {
-    const newAlert = {
-      id: Date.now(),
-      ...emergencyData,
-      acknowledged: false,
+  // Function to acknowledge an emergency alert via your API
+  const acknowledgeAlert = async (alertId) => {
+    if (!alertId) return;
+
+    try {
+      // Optimistically update UI first for a snappier feel
+      if (notificationKeyRef.current) {
+        notification.destroy(notificationKeyRef.current);
+        notificationKeyRef.current = null;
+      }
+      setIsAlertModalOpen(false); // Close the modal immediately
+      setCurrentAlert(null); // Clear the current alert
+// /alerts/:alertId/acknowledge
+      const response = await fetch(`http://localhost:3061/api/sensors/alerts/${alertId}/acknowledge`, { // Your backend API route
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ resolvedBy: 'Dashboard User' }), // You can pass the actual user here
+      });
+      const data = await response.json();
+      if (data.success) {
+        console.log(`Alert ${alertId} acknowledged successfully on Firebase.`);
+        // The Firebase listener will re-evaluate and confirm no unacknowledged alerts
+      } else {
+        console.error('Failed to acknowledge alert via API:', data.message);
+        // Revert UI if API call fails, or show an error
+        notification.error({
+            message: 'Acknowledgment Failed',
+            description: 'Could not acknowledge alert. Please try again.',
+            duration: 5,
+        });
+      }
+    } catch (error) {
+      console.error('Error calling acknowledge API:', error);
+      notification.error({
+        message: 'Network Error',
+        description: 'Failed to connect to acknowledgment service.',
+        duration: 5,
+      });
     }
-
-    setEmergencyAlerts((prev) => [...prev, newAlert])
-    setCurrentAlert(newAlert)
-    setIsAlertOpen(true)
-
-    // Play alert sound
-    const audio = new Audio("/alert.mp3")
-    audio.play().catch((e) => console.log("Audio play failed:", e))
-    
-    // Also show a notification
-    notification.error({
-      message: 'Emergency Alert',
-      description: emergencyData.message,
-      placement: 'topRight',
-      duration: 0, // Does not auto-dismiss
-      icon: <WarningOutlined style={{ color: '#ff4d4f' }} />,
-    });
   }
 
-  // Function to acknowledge an emergency alert
-  const acknowledgeAlert = (alertId) => {
-    setEmergencyAlerts((prev) => prev.map((alert) => (alert.id === alertId ? { ...alert, acknowledged: true } : alert)))
-    setIsAlertOpen(false)
-    
-    // Close the matching notification
-    notification.destroy(alertId.toString());
-  }
-
-  // Simulate helmet emergency button presses
   useEffect(() => {
-    // This would be replaced by real-time data from helmet sensors in a production environment
-    const simulateHelmetEmergency = () => {
-      // Check for simulated helmet emergency button presses
-      const checkForEmergencies = () => {
-        // For demo purposes: 0.5% chance of a helmet emergency every 60 seconds
-        if (Math.random() < 0.005) {
-          const miners = [
-            { id: 1, name: "John Smith", helmetId: "H-1001", section: "Section A" },
-            { id: 2, name: "Sarah Johnson", helmetId: "H-1002", section: "Safety" },
-            { id: 3, name: "Michael Brown", helmetId: "H-1003", section: "Section B" },
-            { id: 4, name: "Emily Davis", helmetId: "H-1004", section: "Environmental" },
-          ]
+    const alertsRef = ref(database, 'alerts');
+    // Fetch all unacknowledged alerts to ensure we always show the *latest*
+    const unacknowledgedAlertsQuery = query(alertsRef, orderByChild('acknowledged'), equalTo(false));
 
-          const randomMiner = miners[Math.floor(Math.random() * miners.length)]
+    const unsubscribe = onValue(unacknowledgedAlertsQuery, (snapshot) => {
+      let latestUnacknowledgedAlert = null;
+      let mostRecentTimestamp = 0;
 
-          triggerEmergency({
-            location: randomMiner.section,
-            timestamp: new Date().toISOString(),
-            type: "Helmet Emergency Button",
-            message: `Emergency button pressed on helmet ${randomMiner.helmetId} by ${randomMiner.name}. Immediate assistance required.`,
-            minerId: randomMiner.id,
-            helmetId: randomMiner.helmetId,
-          })
+      // Find the single latest unacknowledged alert
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnapshot) => {
+          const alert = {
+            id: childSnapshot.key,
+            ...childSnapshot.val(),
+          };
+          if (alert.timestamp > mostRecentTimestamp) {
+            mostRecentTimestamp = alert.timestamp;
+            latestUnacknowledgedAlert = alert;
+          }
+        });
+      }
+
+      if (latestUnacknowledgedAlert) {
+        // Only trigger if it's a truly new alert or we had no alert previously
+        if (!currentAlert || latestUnacknowledgedAlert.id !== currentAlert.id) {
+          setCurrentAlert(latestUnacknowledgedAlert);
+          setIsAlertModalOpen(false); // DO NOT automatically open modal here by default
+
+          // Play alert sound
+          const audio = new Audio(alertSound);
+          audio.play().catch((e) => console.log("Audio play failed:", e));
+
+          // Dismiss any existing notification before showing a new one
+          if (notificationKeyRef.current) {
+            notification.destroy(notificationKeyRef.current);
+          }
+
+          // Show a new Ant Design notification
+          const notifKey = `alert-${latestUnacknowledgedAlert.id}`;
+          notificationKeyRef.current = notifKey;
+
+          notification.error({
+            message: 'Emergency Alert',
+            description: (
+              <div>
+                <p>{latestUnacknowledgedAlert.message}</p>
+                <p><strong>Helmet ID:</strong> {latestUnacknowledgedAlert.helmetId}</p>
+                <p><strong>Location:</strong> {latestUnacknowledgedAlert.location}</p>
+              </div>
+            ),
+            placement: 'topRight',
+            duration: 10, // Notification disappears after 10 seconds unless acknowledged
+            icon: <WarningOutlined style={{ color: '#ff4d4f' }} />,
+            key: notifKey,
+            onClick: () => {
+              // Clicking the notification opens the full modal
+              setIsAlertModalOpen(true);
+            },
+            btn: (
+                <Button
+                    type="primary"
+                    danger
+                    size="small"
+                    onClick={(e) => {
+                        e.stopPropagation(); // Prevent onClick of the notification itself
+                        acknowledgeAlert(latestUnacknowledgedAlert.id);
+                    }}
+                >
+                    Acknowledge
+                </Button>
+            ),
+            onClose: () => {
+                // If notification auto-closes and modal isn't open, clear alert
+                // This prevents the modal from popping up later if user didn't interact
+                if (!isAlertModalOpen) {
+                    setCurrentAlert(null);
+                }
+            }
+          });
+        }
+      } else {
+        // No unacknowledged alerts found, so clear everything and dismiss notification/modal
+        setCurrentAlert(null);
+        setIsAlertModalOpen(false);
+        if (notificationKeyRef.current) {
+          notification.destroy(notificationKeyRef.current);
+          notificationKeyRef.current = null;
         }
       }
+    }, (error) => {
+      console.error("Firebase listener error:", error);
+      // Handle error, e.g., show an error message
+    });
 
-      const interval = setInterval(checkForEmergencies, 60000) // Check every minute
-      return () => clearInterval(interval)
-    }
-
-    const cleanup = simulateHelmetEmergency()
-    return cleanup
-  }, [])
-
-  // Listen for environmental emergencies
-  useEffect(() => {
-    // Simulate receiving an environmental emergency alert
-    const simulateEnvironmentalEmergency = () => {
-      // 0.3% chance of environmental emergency every 2 minutes
-      if (Math.random() < 0.003) {
-        const locations = ["Section A", "Section B", "Section C", "Main Shaft", "Ventilation Area"]
-        const randomLocation = locations[Math.floor(Math.random() * locations.length)]
-
-        triggerEmergency({
-          location: randomLocation,
-          timestamp: new Date().toISOString(),
-          type: "Environmental Alert",
-          message: `High gas levels detected in ${randomLocation}. Evacuation may be required.`,
-        })
+    // Cleanup listener and notification on component unmount
+    return () => {
+      off(unacknowledgedAlertsQuery, 'value', unsubscribe);
+      if (notificationKeyRef.current) {
+        notification.destroy(notificationKeyRef.current);
       }
-    }
-
-    const interval = setInterval(simulateEnvironmentalEmergency, 120000) // Check every 2 minutes
-    return () => clearInterval(interval)
-  }, [])
+    };
+  }, [currentAlert, isAlertModalOpen]); // Added isAlertModalOpen to dependencies for onClose check
 
   return (
-    <EmergencyContext.Provider value={{ emergencyAlerts, triggerEmergency, acknowledgeAlert }}>
+    <EmergencyContext.Provider value={{ currentAlert, acknowledgeAlert }}>
       {children}
 
       <Modal
@@ -120,36 +180,40 @@ export function EmergencyProvider({ children }) {
             </Title>
           </Space>
         }
-        open={isAlertOpen}
+        open={isAlertModalOpen && currentAlert !== null} // Only open if explicitly told to AND alert exists
         footer={[
-          <Button 
-            key="acknowledge" 
-            type="primary" 
-            danger 
+          <Button
+            key="acknowledge"
+            type="primary"
+            danger
             onClick={() => currentAlert && acknowledgeAlert(currentAlert.id)}
           >
             Acknowledge
           </Button>
         ]}
-        onCancel={() => currentAlert && acknowledgeAlert(currentAlert.id)}
-        centered
-        closable={false}
+        // Do not use onCancel to acknowledge unless closable is true.
+        // It's better to explicitly acknowledge.
+        // onCancel={() => currentAlert && acknowledgeAlert(currentAlert.id)}
+        centered // Keep centered for now, but not auto-popping up
+        closable={true} // Allow closing, but acknowledgment will also close it
+        onOk={() => currentAlert && acknowledgeAlert(currentAlert.id)} // Treat OK as acknowledge
+        onCancel={() => setIsAlertModalOpen(false)} // Just close modal on cancel, don't acknowledge unless explicitly done
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Text strong>{currentAlert?.message}</Text>
-          
+
           <Space align="center">
             <EnvironmentOutlined />
             <Text type="secondary"><strong>Location:</strong> {currentAlert?.location}</Text>
           </Space>
-          
+
           <Space align="center">
             <ClockCircleOutlined />
             <Text type="secondary">
               <strong>Time:</strong> {currentAlert && new Date(currentAlert.timestamp).toLocaleTimeString()}
             </Text>
           </Space>
-          
+
           {currentAlert?.helmetId && (
             <Space align="center">
               <IdcardOutlined />

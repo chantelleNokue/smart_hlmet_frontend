@@ -12,6 +12,7 @@ import {
   UsergroupAddOutlined
 } from '@ant-design/icons';
 import { TbBrandGoogleAnalytics } from "react-icons/tb";
+import { GiMiningHelmet } from "react-icons/gi";
 import { Badge } from 'antd';
 import { useUser } from '@clerk/clerk-react';
 import { useState, useEffect } from 'react';
@@ -28,14 +29,15 @@ const icons = {
   BellOutlined,
   HistoryOutlined,
   TbBrandGoogleAnalytics,
-  UsergroupAddOutlined
+  UsergroupAddOutlined,
+  GiMiningHelmet
 };
 
 // ==============================|| MENU ITEMS - UTILITIES ||============================== //
 const Utilities = () => {
   const { user } = useUser();
   const [menuItems, setMenuItems] = useState([]);
-
+ 
   useEffect(() => {
     const userRole = user?.publicMetadata?.role || user?.privateMetadata?.role || 'member';
     console.log('User role:', userRole);
@@ -47,7 +49,7 @@ const Utilities = () => {
         children: [
           {
             id: 'util-historical',
-            title: 'Historical data',
+            title: 'Miners Monitoring',
             type: 'item',
             url: '/historical-data',
             icon: icons.HistoryOutlined
@@ -64,6 +66,14 @@ const Utilities = () => {
             title: 'Alerts',
             type: 'item',
             url: '/alert',
+            icon: icons.BellOutlined,
+            // breadcrumbs: false
+          },
+           {
+            id: 'util-settings',
+            title: 'Settings',
+            type: 'item',
+            url: '/settings',
             icon: icons.BellOutlined,
             // breadcrumbs: false
           }
@@ -91,7 +101,14 @@ const Utilities = () => {
             url: '/user-management',
             icon: icons.UsergroupAddOutlined,
             // breadcrumbs: false
-          }
+          },
+          {
+            id: 'util-helmets',
+            title: 'Helmets',
+            type: 'item',
+            url: '/helmets', 
+            icon: icons.GiMiningHelmet
+          },
         ]
       }
     ];
